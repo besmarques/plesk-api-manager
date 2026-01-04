@@ -15,7 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email_active ON users (email, is_active);
 
 CREATE INDEX IF NOT EXISTS idx_users_role_active ON users (role, is_active);
 
-CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions (session_token);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions (token_hash);
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_active ON user_sessions (user_id, is_active);
 
@@ -57,27 +57,44 @@ CREATE INDEX IF NOT EXISTS idx_notifications_type_date ON user_notifications(typ
 
 -- Add timezone support
 ALTER TABLE users
-ADD COLUMN timezone VARCHAR(50) DEFAULT 'UTC' AFTER language,
-ADD COLUMN date_format VARCHAR(20) DEFAULT 'Y-m-d' AFTER timezone,
-ADD COLUMN time_format VARCHAR(20) DEFAULT 'H:i:s' AFTER date_format;
+ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC' AFTER last_login,
+ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) DEFAULT 'Y-m-d' AFTER timezone,
+ADD COLUMN IF NOT EXISTS time_format VARCHAR(20) DEFAULT 'H:i:s' AFTER date_format;
 
 -- Add server grouping
 ALTER TABLE plesk_servers
-ADD COLUMN server_group VARCHAR(100) DEFAULT 'default' AFTER description,
-ADD COLUMN priority INT DEFAULT 1 AFTER server_group,
-ADD COLUMN max_connections INT DEFAULT 10 AFTER priority;
+ADD COLUMN IF NOT EXISTS server_group VARCHAR(100) DEFAULT 'default' AFTER platform,
+ADD COLUMN IF NOT EXISTS priority INT DEFAULT 1 AFTER server_group,
+ADD COLUMN IF NOT EXISTS max_connections INT DEFAULT 10 AFTER priority;
 
 -- Add domain statistics
 ALTER TABLE plesk_domains
-ADD COLUMN disk_usage BIGINT DEFAULT 0 AFTER ip_addresses,
-ADD COLUMN bandwidth_usage BIGINT DEFAULT 0 AFTER disk_usage,
-ADD COLUMN last_backup DATE AFTER bandwidth_usage;
+ADD COLUMN IF NOT EXISTS disk_usage BIGINT DEFAULT 0 AFTER ip_addresses,
+ADD COLUMN IF NOT EXISTS bandwidth_usage BIGINT DEFAULT 0 AFTER disk_usage,
+ADD COLUMN IF NOT EXISTS last_backup DATE AFTER bandwidth_usage;
 
 -- Add API key usage tracking
 ALTER TABLE api_keys
-ADD COLUMN last_used_at TIMESTAMP NULL AFTER expires_at,
-ADD COLUMN usage_count INT DEFAULT 0 AFTER last_used_at,
-ADD COLUMN rate_limit_per_hour INT DEFAULT 1000 AFTER usage_count;
+ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP NULL AFTER expires_at,
+ADD COLUMN IF NOT EXISTS usage_count INT DEFAULT 0 AFTER last_used_at,
+ADD COLUMN IF NOT EXISTS rate_limit_per_hour INT DEFAULT 1000 AFTER usage_count;
+
+-- Domain cache table used by runtime caching
+CREATE TABLE IF NOT EXISTS domain_cache (
+    id INT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    status ENUM('active', 'suspended', 'disabled', 'unknown') DEFAULT 'unknown',
+    created DATETIME NULL,
+    owner VARCHAR(100),
+    hosting_type VARCHAR(50),
+    www_root TEXT,
+    ip_addresses JSON,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    sync_error TEXT NULL,
+    INDEX idx_domain_cache_name (name),
+    INDEX idx_domain_cache_status (status),
+    INDEX idx_domain_cache_last_updated (last_updated)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- ======================================================================
 -- MIGRATION: Add backup and monitoring tables
@@ -263,55 +280,63 @@ CREATE TABLE IF NOT EXISTS daily_statistics (
 -- Add new configuration options
 INSERT INTO
     app_settings (
-        setting_key,
-        setting_value,
-        description,
-        category
+        `key`,
+        `value`,
+        `type`,
+        `description`,
+        `is_public`
     )
 VALUES (
         'webhook_enabled',
         'true',
+        'boolean',
         'Enable webhook functionality',
-        'features'
+        FALSE
     ),
     (
         'monitoring_enabled',
         'true',
+        'boolean',
         'Enable system monitoring and alerts',
-        'features'
+        FALSE
     ),
     (
         'backup_retention_days',
         '30',
+        'number',
         'Number of days to retain backup records',
-        'backup'
+        FALSE
     ),
     (
         'max_webhook_retries',
         '3',
+        'number',
         'Maximum webhook delivery retry attempts',
-        'webhook'
+        FALSE
     ),
     (
         'health_check_interval',
         '300',
+        'number',
         'Health check interval in seconds',
-        'monitoring'
+        FALSE
     ),
     (
         'alert_notification_enabled',
         'true',
+        'boolean',
         'Send notifications for alerts',
-        'monitoring'
+        FALSE
     ),
     (
         'statistics_retention_months',
         '12',
+        'number',
         'Number of months to retain daily statistics',
-        'system'
+        FALSE
     )
 ON DUPLICATE KEY UPDATE
-    setting_value = VALUES(setting_value),
+    `value` = VALUES(`value`),
     updated_at = CURRENT_TIMESTAMP;
 
 -- ======================================================================

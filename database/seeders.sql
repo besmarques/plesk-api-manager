@@ -203,6 +203,55 @@ VALUES (
 ON DUPLICATE KEY UPDATE
     `updated_at` = CURRENT_TIMESTAMP;
 
+-- Local domain cache used by application runtime
+INSERT INTO
+    `domain_cache` (
+        `id`,
+        `name`,
+        `status`,
+        `created`,
+        `owner`,
+        `hosting_type`,
+        `www_root`,
+        `ip_addresses`,
+        `last_updated`
+    )
+VALUES (
+        1,
+        'example.com',
+        'active',
+        '2024-01-15 10:30:00',
+        'admin',
+        'virtual',
+        '',
+        '["192.168.1.100"]',
+        NOW()
+    ),
+    (
+        2,
+        'test.org',
+        'suspended',
+        '2024-02-01 14:22:00',
+        'client1',
+        'virtual',
+        '',
+        '["192.168.1.101"]',
+        NOW()
+    ),
+    (
+        45,
+        'afinformatica.spot4all.com',
+        'suspended',
+        '2024-03-10 09:15:00',
+        'client3',
+        'virtual',
+        '',
+        '["192.168.1.103"]',
+        NOW()
+    )
+ON DUPLICATE KEY UPDATE
+    last_updated = VALUES(last_updated);
+
 -- Sample customers cache
 INSERT INTO
     `plesk_customers` (

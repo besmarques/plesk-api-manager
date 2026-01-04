@@ -183,6 +183,23 @@ CREATE TABLE IF NOT EXISTS `plesk_customers` (
     INDEX `idx_last_sync` (`last_sync`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+-- Local domain cache used by the application
+CREATE TABLE IF NOT EXISTS `domain_cache` (
+    `id` INT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `status` ENUM('active', 'suspended', 'disabled', 'unknown') DEFAULT 'unknown',
+    `created` DATETIME NULL,
+    `owner` VARCHAR(100),
+    `hosting_type` VARCHAR(50),
+    `www_root` TEXT,
+    `ip_addresses` JSON,
+    `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `sync_error` TEXT NULL,
+    INDEX `idx_domain_cache_name` (`name`),
+    INDEX `idx_domain_cache_status` (`status`),
+    INDEX `idx_domain_cache_last_updated` (`last_updated`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
 -- ======================================================================
 -- API MANAGEMENT TABLES
 -- ======================================================================
